@@ -1,4 +1,3 @@
-
 library(RColorBrewer) 
 library(wesanderson)
 library(devtools)
@@ -536,10 +535,29 @@ plot_identified_gene_coefficients(psuper_obj_TF) +
   theme(axis.text.x = element_text(angle = 45, face="italic", hjust=1), axis.text.y = element_text(face="bold")) 
 
 ############DIFFERENTIAL EXPRESSION AND GSEA############
+#set original identity as active identity 
+Idents(timecourse) <- "orig.ident"
+
+#markers and heatmap
+markers <- FindAllMarkers(norm.crypt)
+View(markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_logFC))
+top100 <- markers %>% top_n(200, avg_logFC)
+genes.to.plot <- top100$gene
+genes.to.label <- c("Olfm4", "Slc12a2", "Mki67", "Ccnd1","Car2", "Ada", "Apoa4", "Apoa1", "Krt20", "Alpi", "Ace2" , "Muc3",  "Lyz1")
+labels <- rep(x = "transparent", times = length(x = genes.to.plot))
+labels[c(31  , 43  ,50,139, 143, 151 ,163 ,181, 193 ,199) ] <- "black"
+
+DoHeatmap(norm.crypt, slot="data", features = genes.to.plot, group.colors	= wes_palette("Darjeeling1"), angle=0 , draw.lines=T)+ 
+  scale_fill_gradientn(colors = brewer.pal(11,"RdYlBu")[11:1])  +
+  theme(axis.text.y = element_text(face = "bold", color = rev(x = labels))) 
+
+geom_text_repel(aes(label=ifelse(timepoint>2,as.character(pathway),'')), direction="y", nudge_x=7, size = 5 , segment.size = 0.1, xjust  = 3) +
+  
+#pairwise comparisong
 D164A_0vs2d <- FindMarkers(norm.crypt, ident.1 = "D164A 2d pi", ident.2 = "D164A 0d pi", verbose = FALSE)
 D164A_0vs4d <- FindMarkers(norm.crypt, ident.1 = "D164A 4d pi", ident.2 = "D164A 0d pi", verbose = FALSE)
 
-#select species and set
+#GSEA
 msigdbr_show_species()
 m_df<- msigdbr(species = "Mus musculus", category = "H")
 Hallmarks <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
@@ -682,3 +700,96 @@ ggplot(data = gseaplot, aes(x = timepoint, y = NES, group = pathway, label= path
   #geom_text_repel(aes(label=ifelse(timepoint>2&NES<0, as.character(pathway),'')), nudge_x=7, direction="y") +
   theme(text = element_text(size=15)) +
   labs(x 		= 'days post injection',y	= 'NORMALIZED ENRICHMENT SCORE')
+
+
+####CLASSIFIER######
+logistic.reg <- function(scale.data.ref, clus.ref, top.100.ref.markers, scale.data.test){
+  
+  train.data <- scale.data.ref
+  test.data <- scale.data.test
+  train.lables <- clus.ref[colnames(train.data)]
+  
+  var.train <- sapply(top.100.ref.markers, function(x) Matrix::colSums(train.data[x,]))
+  p <- lapply(top.100.ref.markers, function(x) rownames(test.data)[which(rownames(test.data) %in% x)])
+  var.test <- sapply(p, function(x) Matrix::colSums(test.data[x, ]))
+  
+  model.train <- data.frame(train.lables, var.train)
+  model.test <- data.frame(var.test)
+  
+  mod <- glm(train.lables ~., data = model.train, family = binomial)
+  fitted.results <- predict(mod, newdata = model.test, "response")
+  
+  return(fitted.results)
+  
+}
+
+#training dataset
+atlas_UMIcounts <- read.table(file = '~/mnt_rstudio/Coco/scRNASeq/RegevAtlas/GSE92332_atlas_UMIcounts.txt', as.is = TRUE)
+metaData <- data.frame(cellNames = colnames(atlas_UMIcounts))%>%
+  mutate(cluster = factor(str_replace(cellNames,".+_","")))
+rownames(metaData) <- metaData$cellNames
+print(metaData)
+atlas1 <- CreateSeuratObject(counts = atlas_UMIcounts, meta.data = metaData)
+colnames(x = atlas1[[]])
+Idents(object = atlas1) <- 'cluster'
+levels(x = atlas1)
+length(atlas1$orig.ident)
+FeatureScatter(atlas1, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+VlnPlot(atlas1, features = c("nFeature_RNA", "nCount_RNA"), ncol = 3)
+atlas1 <- NormalizeData(atlas1, normalization.method = "LogNormalize", scale.factor = 10000)
+atlas1 <- FindVariableFeatures(atlas1,  selection.method = "vst", nfeatures = 2000) 
+VariableFeaturePlot(atlas1)
+all.genes <- rownames(atlas1)
+atlas1 <- ScaleData(atlas1, features = all.genes, vars.to.regress = c("nCount_RNA", "percent.mito", "orig.ident"))
+atlas1 <- RunPCA(atlas1, verbose = FALSE, set.seed(1), features = VariableFeatures(object = atlas1), npcs = 20)
+DimHeatmap(atlas1, dims = 1, cells = 500, balanced = TRUE)
+ElbowPlot(atlas1)
+atlas1 <- FindNeighbors(atlas1, dims = 1:20)
+atlas1 <- FindClusters(atlas1, resolution = 0.5)
+atlas1 <- RunUMAP(object = atlas1, dims = 1:10, set.seed = 5)
+atlas1 <- FindNeighbors(atlas1, dims = 1:10, set.seed = 5) 
+DimPlot(atlas1, reduction.used = "umap", label = FALSE, pt.size = .3, group.by = "cluster")
+Idents(atlas1) <- "cluster"
+cryptREGEV <- subset(atlas1, idents = c("Stem", "TA.G2", "TA.G1", "TA.Early"))
+DimPlot(cryptREGEV)
+current.cluster.ids <- c("Stem", "TA.G2",  "TA.G1", "TA.Early")
+new.cluster.ids <- c("Stem", "TA", "TA", "TA")
+cryptREGEV@active.ident <- plyr::mapvalues(x = cryptREGEV@active.ident, from = current.cluster.ids, to = new.cluster.ids)
+DimPlot(cryptREGEV)
+markers_regev <- FindAllMarkers(object = cryptREGEV, only.pos = T, min.pct = 0.25, logfc.threshold = 0.2)
+gene_cl.ref <- cut_markers(levels(markers_regev$cluster), markers_regev, ntop=100)
+gene_cl.ref
+                     
+#test dataset                     
+norm0 <- subset(norm.crypt, ident="D164A 0d pi")
+norm2 <- subset(norm.crypt, ident="D164A 2d pi")
+norm4 <- subset(norm.crypt, ident="D164A 4d pi")
+
+#input
+scale.data.ref <- cryptREGEV@assays$RNA@scale.data
+clus.ref <- cryptREGEV@active.ident
+top.100.ref.markers <- gene_cl.ref
+
+#classifier                     
+TA.probs0 <- logistic.reg(scale.data.ref, clus.ref, top.100.ref.markers, norm0@assays$RNA@scale.data)
+TA.probs2 <- logistic.reg(scale.data.ref, clus.ref, top.100.ref.markers, norm2@assays$RNA@scale.data)
+TA.probs4 <- logistic.reg(scale.data.ref, clus.ref, top.100.ref.markers, norm4@assays$RNA@scale.data)
+sorted.TA.probs <- sort(TA.probs)
+TA.probs.df <- data.frame(prob= sorted.TA.probs, cells = names(TA.probs))
+sorted.TA.probs2 <- sort(TA.probs2)
+TA.probs.df2 <- data.frame(prob= sorted.TA.probs2, cells = names(TA.probs2))
+sorted.TA.probs4 <- sort(TA.probs4)
+TA.probs.df4 <- data.frame(prob= sorted.TA.probs4, cells = names(TA.probs4))
+
+#plot
+ggplot()+
+  geom_density(data= TA.probs.df0, aes(x=prob, y= -..density..), col="black", size=.8, fill=wes_palette("Darjeeling1")[1])+
+  geom_density(data= TA.probs.df2, aes(x=prob),  col="black", size=.8, fill=wes_palette("Darjeeling1")[2])+
+  geom_vline(xintercept = 0.5, linetype="dashed") +
+  annotate("text", x= 0.45, y=5,label = "IESC-like", size=6, hjust = 0)+
+  annotate("text", x= 0.55, y=5,label = "TA-like", size=6, hjust = 0)+
+  theme(text=element_text(size=17,  family="arial"))+ coord_flip()+
+  labs(x 		= 'probability of being classified as TA vs IESC')+
+  theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())
+
+ks.test(TA.probs.df0$prob, TA.probs.df2$prob, alternative = c("two.sided"))
