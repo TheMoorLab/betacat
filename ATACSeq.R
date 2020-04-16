@@ -24,8 +24,13 @@ library(stringr)
 library(ggrepel)
 
 ###########IMPORT FILES##########
-#files from ENCODE (Sushi) after adapter trimming, mapping, filterning and duplicate removing 
-#annotation (samples.saf) made with bedtools in terminal by:
+#raw bam files downloaded from SUSHI after running AtacENCODEApp pipeline (Davis et al, 2018), which includes: 
+# - adapter trimming with cutadapt
+# - alignment on GRCh38.95 using Bowtie2 with default mapping parameters (Landmead and Salzberg, 2012),
+# - duplicate filtering with Picard 
+# - peak calling with MACS2 (p<0.01)
+
+#The peak files were merged in BEDtools v2.29.2 (Quinlan and Hall, 2010) and converted into a saf annotation (samples.saf)
 # 1. converting narrowPeak files (macs2 with 0.01 pvalue output) to bed "cut -f 1-6 ATAC4.narrowPeak > ATAC4.bed"
 # 2. concatenate "cat ATAC1.bed ATAC2.bed ATAC3.bed ATAC4.bed ATAC5.bed ATAC6.bed > samples.bed"
 # 3. sort by chromosome and starting position "sort -k1,1 -k2,2n samples.bed > samples.sorted.bed"
@@ -33,51 +38,54 @@ library(ggrepel)
 # 5. convert to saf "awk 'OFS="\t" {print $1"."$2"."$3, $1, $2, $3, "."}' samples.merged.bed > samples.saf"
 
 ###########EDGER##########
-#cp /IMCR_shares/Moorlab/Coco/ATACSeq/ENCODE/20200129.A-ATACSeq_1_R1.trim.PE2SE.nodup.bam /home/moorlab/mnt_rstudio/Coco/ATACSeq
-all_files = featureCounts(files = c( "/home/moorlab/mnt_rstudio/Coco/ATACSeq/ENCODE/20200129.A-ATACSeq_1_R1.trim.PE2SE.nodup.bam",
-                                     "/home/moorlab/mnt_rstudio/Coco/ATACSeq/ENCODE/20200129.A-ATACSeq_2_R1.trim.PE2SE.nodup.bam",
-                                     "/home/moorlab/mnt_rstudio/Coco/ATACSeq/ENCODE/20200129.A-ATACSeq_3_R1.trim.PE2SE.nodup.bam",
-                                     "/home/moorlab/mnt_rstudio/Coco/ATACSeq/ENCODE/20200129.A-ATACSeq_4_R1.trim.PE2SE.nodup.bam",
-                                     "/home/moorlab/mnt_rstudio/Coco/ATACSeq/ENCODE/20200129.A-ATACSeq_5_R1.trim.PE2SE.nodup.bam",
-                                     "/home/moorlab/mnt_rstudio/Coco/ATACSeq/ENCODE/20200129.A-ATACSeq_6_R1.trim.PE2SE.nodup.bam"), 
-                     allowMultiOverlap=TRUE, isPairedEnd = T, 
-                     annot.ext="/home/moorlab/mnt_rstudio/Coco/ATACSeq/samples.saf")
+#nraw reads were mapped to the saf annotation with the FeatureCounts function in the package rsubread (Liao et al, 2019)
+all_files = featureCounts(files = c( "control1.bam",
+                                     "control2.bam",
+                                     "control3.bam",
+                                     "D164A1.bam",
+                                     "D164A2.bam",
+                                     "D164A3.bam"), 
+                          allowMultiOverlap=TRUE, 
+                          isPairedEnd = T, 
+                          annot.ext="samples.saf")
 
 head(all_files$counts)
-h = c("control_1", "control_2", "D164A_1", "control_3", "D164A_2", "D164A_3")
-colnames(all_files$counts) = h
+colnames(all_files$counts) = c("control_1", "control_2", "control_3", "D164A_1", "D164A_2", "D164A_3")
 head(all_files$counts)
 all_counts = as.matrix(all_files$counts)
 head(all_counts)
 write.table(all_counts, file = "rawCounts_all.txt") 
 
 #Create DGEList object
-group <- factor(c(1,1,2, 1,2,2))
-y <- DGEList(counts=all_counts,group=group)
+group <- factor(c(1,1,1, 2,2,2))
+y     <- DGEList(counts=all_counts,group=group)
 y$samples
 barplot(y$samples$lib.size,names=colnames(y),las=2, main = "Barplot of library sizes")
 
-# Filter reads by counts: Most of the samples should have at least 10 reads, normalize the library and estimate dispersion
-keep <- filterByExpr(y, min.count = 10)
-y <- y[keep, , keep.lib.sizes=FALSE]
-y <- calcNormFactors(y)
-y$samples
-design <- model.matrix(~group)
-y <- estimateDisp(y,design)
+# filter count matrix for peaks with low coverage (minimum read count of 10 for each sample)
+keep    <- filterByExpr(y, min.count = 10)
+y       <- y[keep, , keep.lib.sizes=FALSE]
 
+#normalize the library and estimate dispersion
+y       <- calcNormFactors(y)
+y$samples
+design  <- model.matrix(~group)
+y       <- estimateDisp(y,design)
+
+#plot MDS
 plotMDS(y)
-logcpm <- edgeR::cpm(y, log=TRUE)
+logcpm  <- edgeR::cpm(y, log=TRUE)
 head(logcpm)
 
 # perform exact test for differential gene expression
-et2v1 <- exactTest(y, pair=c("1","2"))
+et2v1   <- exactTest(y, pair=c("1","2"))
 topTags(et2v1)
 
 plotMD(et2v1)
 summary(decideTests(et2v1))
 
-# Export all genes
-all_et2v1 = topTags(et2v1, n = Inf)
+# Export all peaks
+all_et2v1  = topTags(et2v1, n = Inf)
 dim(all_et2v1)
 head(all_et2v1$table, 100)
 write.table(all_et2v1$table, file = "controlvsD164A.txt")
@@ -85,9 +93,9 @@ r = rownames(all_et2v1$table)
 all_et2v1$table$GeneID = r
 head(all_et2v1$table)
 
-###########ANNOTATION##########
-#merge the edgeR output to the peak genomic locations, to generate a pre-BED file 
-saf = read.csv("/home/moorlab/mnt_rstudio/Coco/ATACSeq/samples.saf", sep = "\t", header = F)
+###########ANNOTATION IN HOMER##########
+#merge the edgeR output to the peak genomic locations (samples.saf), to generate a pre-BED file 
+saf = read.csv("samples.saf", sep = "\t", header = F)
 head(saf)
 colnames(saf) = c("GeneID", "V2", "V3", "V4", "V5")
 
@@ -100,21 +108,21 @@ controlvsD164A_bed <- bed_controlvsD164A[, c("V2", "V3", "V4","V5", "GeneID","lo
 head(controlvsD164A_bed)
 colnames(controlvsD164A_bed) <- c('chrom', 'chromStart', 'chromEnd', 'strand', 'GeneID', "logFC", "logCPM", "PValue", "FDR")
 write.table(controlvsD164A_bed, file = "controlvsD164A.txt", quote=FALSE, sep="\t", row.names=F)
-#cp /home/moorlab/mnt_rstudio/Coco/ATACSeq/Betacat-ATACSeq/controlvsD164A.txt /IMCR_shares/Moorlab/Coco/ATACSeq/
 
 #add PeakID column in Excel, export as tab delimited file, then annotate peaks in HOMER:
   # 1) changeNewLine.pl controlvsD164A.txt  
   # 2) annotatePeaks.pl controlvsD164A.txt mm10 > annotation.txt (previously installed mm10)
 #import annotation file: cp /IMCR_shares/Moorlab/Coco/ATACSeq/annotation.txt /home/moorlab/mnt_rstudio/Coco/BetacatProject/ATACSeq
 
-annotation <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/annotation.txt")
+annotation <- read.delim("annotation.txt")
 View(annotation)
 
-#merge by GeneID with result of EdgeR
+#merge by GeneID with result of EdgeR: now you have annotated and differentially accessible peaks
 annotateddiffpeaks = merge(all_et2v1$table, annotation, by = "GeneID")
 View(annotateddiffpeaks)
 nrow(annotateddiffpeaks)
 
+#plot
 ggplot(annotateddiffpeaks, aes(x=logFC, y=-log10(PValue), label = Gene.Name)) + geom_text()
 
 #####VOLCANO PLOT######
@@ -155,74 +163,66 @@ ggplot(data=annotateddiffpeaks, aes(x=logFC, y=-log10(PValue), fill=factor(Signi
   annotate("point", x = 1.341831, y = -log10(0.002943785), shape = 21,color="black", fill="firebrick3", size=4)+
   annotate("label", x = 1.341831+.6, y = -log10(0.002943785)+0.3, label = "Muc13", size=7) #is JNK target: https://cancerres.aacrjournals.org/content/69/3/765.long
   
-#select differentially accessible peaks
-positions <- which(abs(annotateddiffpeaks$logFC) > 1 & annotateddiffpeaks$PValue < 0.01)
-Diffpeaks <- (annotateddiffpeaks[positions, c("logFC", "PValue", "Gene.Name")])
+#select differentially accessible peaks and export for HOMER motif analysis ./bin/findMotifsGenome.pl Diffpeaks.txt mm10 HOMER/ 
+positions         <- which(abs(annotateddiffpeaks$logFC) > 1 & annotateddiffpeaks$PValue < 0.01)
+DiffpeaksHOMER    <- (annotateddiffpeaks[positions, c("logFC", "PValue", "Gene.Name")])
 write.table(DiffpeaksHOMER, file = "DiffpeaksHOMER.txt", quote=FALSE, sep="\t", row.names=F)
 
-positionsUP <- which(annotateddiffpeaks$logFC > 1 & annotateddiffpeaks$PValue < 0.01)
-DiffpeaksHOMERUP <- annotateddiffpeaks[positionsUP, c(6:10)]
+positionsUP       <- which(annotateddiffpeaks$logFC > 1 & annotateddiffpeaks$PValue < 0.01)
+DiffpeaksHOMERUP  <- annotateddiffpeaks[positionsUP, c(6:10)]
 write.table(DiffpeaksHOMERUP, file = "DiffpeaksHOMERUP.txt", quote=FALSE, sep="\t", row.names=F)
 
-positionsDN <- which(annotateddiffpeaks$logFC < -1 & annotateddiffpeaks$PValue < 0.01)
-DiffpeaksHOMERDN <- annotateddiffpeaks[positionsDN, c(6:10)]
+positionsDN       <- which(annotateddiffpeaks$logFC < -1 & annotateddiffpeaks$PValue < 0.01)
+DiffpeaksHOMERDN  <- annotateddiffpeaks[positionsDN, c(6:10)]
 write.table(DiffpeaksHOMERDN, file = "DiffpeaksHOMERDN.txt", quote=FALSE, sep="\t", row.names=F)
 
-positionsUP <-which(annotateddiffpeaks$logFC > 1 & annotateddiffpeaks$PValue < 0.01)
-DiffpeaksUP <- annotateddiffpeaks[positionsUP, c("GeneID","Gene.Name","Detailed.Annotation", "logFC", "PValue")]
+positionsUP       <- which(annotateddiffpeaks$logFC > 1 & annotateddiffpeaks$PValue < 0.01)
+DiffpeaksUP       <- annotateddiffpeaks[positionsUP, c("GeneID","Gene.Name","Detailed.Annotation", "logFC", "PValue")]
 View(DiffpeaksUP)
 
-positionsDN <- which(annotateddiffpeaks$logFC < -1 & annotateddiffpeaks$PValue < 0.01)
-DiffpeaksDN <- annotateddiffpeaks[positionsDN, c("GeneID","Gene.Name","Detailed.Annotation", "logFC", "PValue")]
+positionsDN       <- which(annotateddiffpeaks$logFC < -1 & annotateddiffpeaks$PValue < 0.01)
+DiffpeaksDN       <- annotateddiffpeaks[positionsDN, c("GeneID","Gene.Name","Detailed.Annotation", "logFC", "PValue")]
 nrow(DiffpeaksDN)
 
 #find gained peaks under control of AP1 complex TFTs
 #command line HOMER: ./bin/findMotifsGenome.pl DiffpeaksHOMERUP.txt mm10 HOMER/ -find ./bin/motifs/ap1.motif > AP1.txt
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/AP1.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/fra1.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/fra2.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/fos.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/atf3.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/junb.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/batf.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/junap1.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
-cp /IMCR_shares/Moorlab/Coco/ATACSeq/spdef.txt /home/moorlab/mnt_rstudio/Coco/ATACSeq 
+AP1      <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/AP1.txt")
+fra1    <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fra1.txt")
+fra2    <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fra2.txt")
+fos     <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fos.txt")
+atf3    <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/atf3.txt")
+junb    <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/junb.txt")
+batf    <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/batf.txt")
+junap1  <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/junap1.txt")
+spdef   <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/spdef.txt")
 
-AP1 <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/AP1.txt")
-fra1 <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fra1.txt")
-fra2 <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fra2.txt")
-fos <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fos.txt")
-atf3 <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/atf3.txt")
-junb <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/junb.txt")
-batf <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/batf.txt")
-junap1 <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/junap1.txt")
-spdef <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/spdef.txt")
-
+#merge genomic position with annotation and edgeR result
 annotateddiffpeaks$PositionID <- tolower(annotateddiffpeaks$PositionID)
-AP1targets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], AP1, by = "PositionID")
-fra1targets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], fra1, by = "PositionID")
-fra2targets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], fra2, by = "PositionID")
-fostargets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], fos, by = "PositionID")
-atf3targets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], atf3, by = "PositionID")
-junbtargets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], junb, by = "PositionID")
-batftargets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], batf, by = "PositionID")
+AP1targets    = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], AP1, by = "PositionID")
+fra1targets   = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], fra1, by = "PositionID")
+fra2targets   = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], fra2, by = "PositionID")
+fostargets    = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], fos, by = "PositionID")
+atf3targets   = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], atf3, by = "PositionID")
+junbtargets   = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], junb, by = "PositionID")
+batftargets   = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], batf, by = "PositionID")
 junap1targets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], junap1, by = "PositionID")
-spdeftargets = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], spdef, by = "PositionID")
+spdeftargets  = merge(annotateddiffpeaks[positionsUP, c("PositionID", "Gene.Name", "logFC", "PValue", "GeneID")], spdef, by = "PositionID")
 
-ap1peaks <- as.vector(AP1targets$Gene.Name[!duplicated(AP1targets$Gene.Name)])
-fra1peaks <- as.vector(fra1targets$Gene.Name[!duplicated(fra1targets$Gene.Name)])
-fra2peaks <- as.vector( fra2targets$Gene.Name[!duplicated(fra2targets$Gene.Name)])
-fospeaks <- as.vector( fostargets$Gene.Name[!duplicated(fostargets$Gene.Name)])
-atf3peaks <- as.vector(atf3targets$Gene.Name[!duplicated(atf3targets$Gene.Name)])
-junbpeaks <- as.vector( junbtargets$Gene.Name[!duplicated(junbtargets$Gene.Name)])
-batfpeaks <- as.vector(batftargets$Gene.Name[!duplicated(batftargets$Gene.Name)])
+#get unique gene names
+ap1peaks    <- as.vector(AP1targets$Gene.Name[!duplicated(AP1targets$Gene.Name)])
+fra1peaks   <- as.vector(fra1targets$Gene.Name[!duplicated(fra1targets$Gene.Name)])
+fra2peaks   <- as.vector( fra2targets$Gene.Name[!duplicated(fra2targets$Gene.Name)])
+fospeaks    <- as.vector( fostargets$Gene.Name[!duplicated(fostargets$Gene.Name)])
+atf3peaks   <- as.vector(atf3targets$Gene.Name[!duplicated(atf3targets$Gene.Name)])
+junbpeaks   <- as.vector( junbtargets$Gene.Name[!duplicated(junbtargets$Gene.Name)])
+batfpeaks   <- as.vector(batftargets$Gene.Name[!duplicated(batftargets$Gene.Name)])
 junap1peaks <- as.vector(junap1targets$Gene.Name[!duplicated(junap1targets$Gene.Name)])
 
-a <- c(ap1peaks, fra1peaks, fra2peaks, fospeaks, atf3peaks, junbpeaks, batfpeaks, junap1peaks)
-FosJunAp1targetgenesNames <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/FosJunAp1targetgenes.txt")
-FosJunAp1targetgenes <- as.data.frame(FosJunAp1targetgenesNames)
-colnames(FosJunAp1targetgenes) <- "Gene.Name"
-FosJunAp1targetgenes = merge(annotateddiffpeaks[positionsUP, c("Gene.Name", "logFC", "PValue")], FosJunAp1targetgenes, by = "Gene.Name")
+FosJunAp1targetgenesNames       <- c(ap1peaks, fra1peaks, fra2peaks, fospeaks, atf3peaks, junbpeaks, batfpeaks, junap1peaks)
+FosJunAp1targetgenes            <- as.data.frame(FosJunAp1targetgenesNames)
+colnames(FosJunAp1targetgenes)  <- "Gene.Name"
+FosJunAp1targetgenes            = merge(annotateddiffpeaks[positionsUP, c("Gene.Name", "logFC", "PValue")], 
+                                        FosJunAp1targetgenes, by = "Gene.Name")
 write.table(FosJunAp1targetgenes, file = "FosJunAp1targetgenesNames.txt",  row.names=F, quote=FALSE, sep ="\t")
 
 ##########GSEA#########
@@ -276,9 +276,9 @@ BP_Diff  %>% filter(abs(NES)>1 & pval<0.05)
 enrichmentscRNASeq <- rbind(Hallmarks_0vs4, CGP_0vs4, KEGG_0vs4,REACTOME_0vs4, TFT_0vs4, BP_0vs4)
 View(enrichmentscRNASeq)
 length(enrichmentscRNASeq$pathway)
-length(enrichmentATAC$pathway)
 
 enrichmentATAC <- rbind(Hallmarks_Diff, CGP_Diff, KEGG_Diff,REACTOME_Diff, TFT_Diff, BP_Diff)
+length(enrichmentATAC$pathway)
 
 overrepresentedRNA<- which(enrichmentscRNASeq$NES>1)
 OVER_RNA <-enrichmentscRNASeq[overrepresentedRNA,]
