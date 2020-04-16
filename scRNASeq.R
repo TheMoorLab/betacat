@@ -254,7 +254,7 @@ crypt <- RunUMAP(object = crypt, dims = 1:10, set.seed = 5)
 crypt <- FindNeighbors(crypt, dims = 1:10, set.seed = 5) 
 DimPlot(crypt, reduction.used = "umap", label = FALSE, pt.size = .3, group.by = "orig.ident")
 
-#################NORMALIZATION###############
+#################NORMALIZATION (L. DVR)###############
 Idents(crypt) <- "orig.ident"
 
 #pull data matrix from samples (normalized, non-scaled data) and apply exp to remove the log
