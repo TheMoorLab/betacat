@@ -18,6 +18,7 @@ library('SingleCellExperiment')
 library(magrittr)
 library(data.table)
 library(stringr)
+source(Functions_KHandler.R)
 
 ################PRE-PROCESSING OF INDIVIDUAL DATASETS################
 #timecourse experiment
