@@ -6,14 +6,14 @@ library(devtools)
 install_github("raivokolde/pheatmap")
 
 #import EdgeR files downloaded from Shushi DE=differential expression over het control
-DE_D164A <- read.delim("~/mnt_rstudio/Coco/BetacatProject/RNASeq/result--D164A--over--het.txt", header=T)
-DE_DeltaC <- read.delim("~/mnt_rstudio/Coco/BetacatProject/RNASeq/result--DeltaC--over--het.txt", header=T)
-DE_dm <- read.delim("~/mnt_rstudio/Coco/BetacatProject/RNASeq/result--dm--over--het.txt", header=T)
-DE_KO <- read.delim("~/mnt_rstudio/Coco/BetacatProject/RNASeq/result--floxflox--over--het.txt", header=T)
+DE_D164A    <- read.delim("~/mnt_rstudio/Coco/BetacatProject/RNASeq/result--D164A--over--het.txt", header=T)
+DE_DeltaC   <- read.delim("~/mnt_rstudio/Coco/BetacatProject/RNASeq/result--DeltaC--over--het.txt", header=T)
+DE_dm       <- read.delim("~/mnt_rstudio/Coco/BetacatProject/RNASeq/result--dm--over--het.txt", header=T)
+DE_KO       <- read.delim("~/mnt_rstudio/Coco/BetacatProject/RNASeq/result--floxflox--over--het.txt", header=T)
 
 ####PCA######
 #extract FPKM values from one of the EdgeR result dataframes (here DE_KO) (TV are sample names from the sequencing)
-all_genes <-  data.frame("Gene"=DE_KO[,"gene_name"],
+all_genes   <-  data.frame("Gene"=DE_KO[,"gene_name"],
                              "het_1"=DE_KO[, "TV6..FPKM."],
                              "het_2"=DE_KO[, "TV7..FPKM."],
                              "het_3"=DE_KO[, "TV8..FPKM."],
@@ -31,17 +31,19 @@ all_genes <-  data.frame("Gene"=DE_KO[,"gene_name"],
 all_genes[1] <- NULL
 
 #average FPKM all genes
-het <- rowMeans(all_genes[,1:4])
-KO <- rowMeans(all_genes[,5:6])
-dm <- rowMeans(all_genes[,7:9])
-DeltaC <- rowMeans(all_genes[,10:11])
-D164A <- rowMeans(all_genes[,12:14])
-all_genes_average <- cbind(het, KO, dm, DeltaC, D164A)
+het     <- rowMeans(all_genes[,1:4])
+KO      <- rowMeans(all_genes[,5:6])
+dm      <- rowMeans(all_genes[,7:9])
+DeltaC  <- rowMeans(all_genes[,10:11])
+D164A   <- rowMeans(all_genes[,12:14])
+all_genes_average           <- cbind(het, KO, dm, DeltaC, D164A)
 colnames(all_genes_average) <- c("control", "KO", "dm", "DeltaC", "D164A")
-data_for_PCA <- t(all_genes_average)
+
+#pca
+data_for_PCA                <- t(all_genes_average)
 dim(data_for_PCA)
 
-## calculate MDS (matrix of dissimilarities)
+# calculate MDS (matrix of dissimilarities)
 mds <- cmdscale(dist(data_for_PCA), k=3, eig=TRUE)  
 
 #The variable mds$eig provides the Eigen values for the first 8 principal components:
@@ -49,6 +51,7 @@ mds$eig
 
 # transform the Eigen values into percentage
 eig_pc <- mds$eig * 100 / sum(mds$eig)
+
 # plot the PCA
 barplot(eig_pc,
         las=1,
@@ -66,35 +69,44 @@ summary(pca)
 #########SIGNIFICANT DEGS############
 threshold_pvalue = 0.05
 threshold_log2fc = 2
-positions <- which(DE_D164A$pValue < threshold_pvalue & (DE_D164A$log2.Ratio < -threshold_log2fc | DE_D164A$log2.Ratio > threshold_log2fc))
-sigDEG_D164A <- data.frame("Gene"=DE_D164A[positions,"gene_name"], "log2ratio"=DE_D164A[positions,"log2.Ratio"], "pValue"=DE_D164A[positions,"pValue"], stringsAsFactors = FALSE)
-sigDEG_D164A %>% remove_rownames %>% column_to_rownames(var="Gene")
 
-positions <- which(DE_DeltaC$pValue < threshold_pvalue & (DE_DeltaC$log2.Ratio < -threshold_log2fc | DE_DeltaC$log2.Ratio > threshold_log2fc))
+positions     <- which(DE_D164A$pValue < threshold_pvalue & (DE_D164A$log2.Ratio < -threshold_log2fc | DE_D164A$log2.Ratio > threshold_log2fc))
+sigDEG_D164A  <- data.frame("Gene"=DE_D164A[positions,"gene_name"], "log2ratio"=DE_D164A[positions,"log2.Ratio"], "pValue"=DE_D164A[positions,"pValue"], stringsAsFactors = FALSE)
+sigDEG_D164A  %>% remove_rownames %>% column_to_rownames(var="Gene")
+
+positions     <- which(DE_DeltaC$pValue < threshold_pvalue & (DE_DeltaC$log2.Ratio < -threshold_log2fc | DE_DeltaC$log2.Ratio > threshold_log2fc))
 sigDEG_DeltaC <- data.frame("Gene"=DE_DeltaC[positions,"gene_name"], "log2ratio"=DE_DeltaC[positions,"log2.Ratio"], "pValue"=DE_DeltaC[positions,"pValue"], stringsAsFactors = FALSE)
 sigDEG_DeltaC %>% remove_rownames %>% column_to_rownames(var="Gene")
 
-positions <- which(DE_dm$pValue < threshold_pvalue & (DE_dm$log2.Ratio < -threshold_log2fc | DE_dm$log2.Ratio > threshold_log2fc))
-sigDEG_dm <- data.frame("Gene"=DE_dm[positions,"gene_name"], "log2ratio"=DE_dm[positions,"log2.Ratio"], "pValue"=DE_dm[positions,"pValue"], stringsAsFactors = FALSE)
-sigDEG_dm %>% remove_rownames %>% column_to_rownames(var="Gene")
+positions     <- which(DE_dm$pValue < threshold_pvalue & (DE_dm$log2.Ratio < -threshold_log2fc | DE_dm$log2.Ratio > threshold_log2fc))
+sigDEG_dm     <- data.frame("Gene"=DE_dm[positions,"gene_name"], "log2ratio"=DE_dm[positions,"log2.Ratio"], "pValue"=DE_dm[positions,"pValue"], stringsAsFactors = FALSE)
+sigDEG_dm     %>% remove_rownames %>% column_to_rownames(var="Gene")
 
-positions <- which(DE_KO$pValue < threshold_pvalue & (DE_KO$log2.Ratio < -threshold_log2fc | DE_KO$log2.Ratio > threshold_log2fc))
-sigDEG_KO <- data.frame("Gene"=DE_KO[positions,"gene_name"],"log2ratio"=DE_KO[positions,"log2.Ratio"], "pValue"=DE_KO[positions,"pValue"], stringsAsFactors = FALSE)
-sigDEG_KO %>% remove_rownames %>% column_to_rownames(var="Gene")
+positions     <- which(DE_KO$pValue < threshold_pvalue & (DE_KO$log2.Ratio < -threshold_log2fc | DE_KO$log2.Ratio > threshold_log2fc))
+sigDEG_KO     <- data.frame("Gene"=DE_KO[positions,"gene_name"],"log2ratio"=DE_KO[positions,"log2.Ratio"], "pValue"=DE_KO[positions,"pValue"], stringsAsFactors = FALSE)
+sigDEG_KO     %>% remove_rownames %>% column_to_rownames(var="Gene")
 
-#used these gene lists for EnrichR
-
+#use these gene lists for EnrichR
 
 #############UPSET PLOT#################
 library(UpSetR)
-sigDEGs <- list("KO" = sigDEG_KO$Gene,
-     "dm" = sigDEG_dm$Gene,
-     "DeltaC" = sigDEG_DeltaC$Gene,
-     "D164A" = sigDEG_D164A$Gene)
+sigDEGs   <- list("KO" = sigDEG_KO$Gene,
+                  "dm" = sigDEG_dm$Gene,
+                  "DeltaC" = sigDEG_DeltaC$Gene,
+                   "D164A" = sigDEG_D164A$Gene)
 
-upset(fromList(sigDEGs), order.by = "freq", nintersects = NA,  main.bar.color = "darkblue", 
-      keep.order = T, matrix.color = "darkred", mainbar.y.label = "number of intersecting DEGs", sets.x.label= "number of DEGs",
-      sets.bar.color = "lightgrey", point.size = 10, empty.intersections=T, text.scale = 4)
+upset(fromList(sigDEGs), 
+      order.by = "freq", 
+      nintersects = NA,  
+      main.bar.color = "darkblue", 
+      keep.order = T, 
+      matrix.color = "darkred", 
+      mainbar.y.label = "number of intersecting DEGs", 
+      sets.x.label= "number of DEGs",
+      sets.bar.color = "lightgrey", 
+      point.size = 10, 
+      empty.intersections=T, 
+      text.scale = 4)
  
  
 #############MARKER HEATMAP#################                  
@@ -125,16 +137,19 @@ for (i in 1:ncol(markergenes))
 }
 
 #make numeric
-markergenesFPKMnum <-  data.matrix(markergenesFPKM[, c(2:11)], rownames.force = NA)
-rownames(markergenesFPKMnum) <- markergenesFPKM$Gene
-colnames(markergenesFPKMnum) <- c("KO_1", "KO_2","dm_1", "dm_2", "dm_3",  "DeltaC_1",  "DeltaC_2",   "D164A_1",  "D164A_2",   "D164A_3")
+markergenesFPKMnum            <-  data.matrix(markergenesFPKM[, c(2:11)], rownames.force = NA)
+rownames(markergenesFPKMnum)  <- markergenesFPKM$Gene
+colnames(markergenesFPKMnum)  <- c("KO_1", "KO_2","dm_1", "dm_2", "dm_3",  "DeltaC_1",  "DeltaC_2",   "D164A_1",  "D164A_2",   "D164A_3")
 
-paletteLength <- 50
-myColor <- colorRampPalette(c("blue", "white", "darkorange"))(paletteLength)
-annotation_rows <- data.frame(markers = rep(c("Wnt signalling", "Stem cells", "Proliferation"), c(6,10,4)))
-rownames(annotation_rows) <- rownames(markergenesFPKMnum)
-annotation_rows$markers <- factor(annotation_rows$markers, levels = c("Wnt signalling", "Stem cells", "Proliferation"))
-breaksList = seq(-2, 2, by = 0.04)
+#prepare palette for pheatmap
+paletteLength   <- 50
+myColor         <- colorRampPalette(c("blue", "white", "darkorange"))(paletteLength)
+breaksList      = seq(-2, 2, by = 0.04)
+
+#prepare annotation for pheatmap
+annotation_rows             <- data.frame(markers = rep(c("Wnt signalling", "Stem cells", "Proliferation"), c(6,10,4)))
+rownames(annotation_rows)   <- rownames(markergenesFPKMnum)
+annotation_rows$markers     <- factor(annotation_rows$markers, levels = c("Wnt signalling", "Stem cells", "Proliferation"))
 
 pheatmap(markergenesFPKMnum, scale="row", 
          color = colorRampPalette(c("blue", "white", "darkorange"))(length(breaksList)), # Defines the vector of colors for the legend (it has to be of the same lenght of breaksList)
@@ -158,27 +173,20 @@ library(ggplot2)
 ###GSEA ON DIFFERENTIAL EXPRESSION ##
 #select species and set
 msigdbr_show_species()
-m_df<- msigdbr(species = "Mus musculus", category = "H")
+m_df      <- msigdbr(species = "Mus musculus", category = "H")
 Hallmarks <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(Hallmarks)
-m_df<- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
-CGP <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(CGP)
-m_df<- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:KEGG")
-KEGG <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(KEGG)
-m_df<- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:REACTOME")
-REACTOME <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(REACTOME)
-m_df<- msigdbr(species = "Mus musculus", category = "C3", subcategory = "TFT")
-TFT <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(TFT)
-m_df<- msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
-BP <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(BP)
-m_df<- msigdbr(species = "Mus musculus", category = "C6")
-oncSig <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(oncSig)
+m_df      <- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
+CGP       <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:KEGG")
+KEGG      <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:REACTOME")
+REACTOME  <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C3", subcategory = "TFT")
+TFT       <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
+BP        <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C6")
+oncSig    <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
 
 #on significant DEGs in KO
 ranks <- sigDEG_KO %>% 
@@ -256,7 +264,7 @@ DeltaC <- ggplot(Hallmarks_DeltaC %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(
   theme_classic()+  
   theme(axis.text.y=element_text(size=15), axis.text.x=element_text(size=15), axis.title=element_text(size=15, face="bold"))
 
-
+#make one panel
 library(ggpubr)
 theme_set(theme_pubr())
 figure <- ggarrange(KO, dm, DeltaC,
@@ -266,7 +274,6 @@ figure <- ggarrange(KO, dm, DeltaC,
                     label.x = c(0.3, 0.3, 0.27),
                     ncol = 1, nrow = 3)
 figure
-
 
 #on significant DEGs in D164A
 ranks <- sigDEG_D164A %>% 
