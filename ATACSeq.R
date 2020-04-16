@@ -186,7 +186,7 @@ nrow(DiffpeaksDN)
 
 #find gained peaks under control of AP1 complex TFTs
 #command line HOMER: ./bin/findMotifsGenome.pl DiffpeaksHOMERUP.txt mm10 HOMER/ -find ./bin/motifs/ap1.motif > AP1.txt
-AP1      <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/AP1.txt")
+AP1     <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/AP1.txt")
 fra1    <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fra1.txt")
 fra2    <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fra2.txt")
 fos     <- read.delim("~/mnt_rstudio/Coco/BetacatProject/ATACSeq/fos.txt")
@@ -228,27 +228,18 @@ write.table(FosJunAp1targetgenes, file = "FosJunAp1targetgenesNames.txt",  row.n
 ##########GSEA#########
 #select species and set
 msigdbr_show_species()
-m_df<- msigdbr(species = "Mus musculus", category = "H")
+m_df      <- msigdbr(species = "Mus musculus", category = "H")
 Hallmarks <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(Hallmarks)
-m_df<- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
-CGP <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(CGP)
-m_df<- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:KEGG")
-KEGG <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(KEGG)
-m_df<- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:REACTOME")
-REACTOME <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(REACTOME)
-m_df<- msigdbr(species = "Mus musculus", category = "C3", subcategory = "TFT")
-TFT <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(TFT)
-m_df<- msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
-BP <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(BP)
-m_df<- msigdbr(species = "Mus musculus", category = "C6")
-oncSig <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
-head(oncSig)
+m_df      <- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
+CGP       <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:KEGG")
+KEGG      <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:REACTOME")
+REACTOME  <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C3", subcategory = "TFT")
+TFT       <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+m_df      <- msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
+BP        <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
 
 #on all Diffpeaks
 ranks <- Diffpeaks %>% 
@@ -264,37 +255,36 @@ BP_Diff <- fgsea(pathways = BP,
                       maxSize=500,
                       nperm=1000000)
 
-Hallmarks_Diff %>% filter(abs(NES)>1 & pval<0.05)
-View(CGP_Diff %>% filter(abs(NES)>1 & pval<0.05))
-View(KEGG_Diff) 
-REACTOME_Diff %>% filter(abs(NES)>1 & pval<0.05)
-TFT_Diff %>% filter(abs(NES)>1 & pval<0.05) #no sign padj
-BP_Diff  %>% filter(abs(NES)>1 & pval<0.05)
+Hallmarks_Diff    %>% filter(abs(NES)>1 & pval<0.05)
+CGP_Diff          %>% filter(abs(NES)>1 & pval<0.05)
+KEGG_Diff         %>% filter(abs(NES)>1 & pval<0.05)
+REACTOME_Diff     %>% filter(abs(NES)>1 & pval<0.05)
+TFT_Diff          %>% filter(abs(NES)>1 & pval<0.05) 
+BP_Diff           %>% filter(abs(NES)>1 & pval<0.05)
 
 
 #########OVERLAP WITH TRANSCRIPTOMICS######
-enrichmentscRNASeq <- rbind(Hallmarks_0vs4, CGP_0vs4, KEGG_0vs4,REACTOME_0vs4, TFT_0vs4, BP_0vs4)
-View(enrichmentscRNASeq)
+enrichmentscRNASeq      <- rbind(Hallmarks_0vs4, CGP_0vs4, KEGG_0vs4,REACTOME_0vs4, TFT_0vs4, BP_0vs4)
 length(enrichmentscRNASeq$pathway)
 
-enrichmentATAC <- rbind(Hallmarks_Diff, CGP_Diff, KEGG_Diff,REACTOME_Diff, TFT_Diff, BP_Diff)
+enrichmentATAC          <- rbind(Hallmarks_Diff, CGP_Diff, KEGG_Diff,REACTOME_Diff, TFT_Diff, BP_Diff)
 length(enrichmentATAC$pathway)
 
-overrepresentedRNA<- which(enrichmentscRNASeq$NES>1)
-OVER_RNA <-enrichmentscRNASeq[overrepresentedRNA,]
-underrepresentedRNA<- which(enrichmentscRNASeq$NES < -1)
-UNDER_RNA <- enrichmentscRNASeq[underrepresentedRNA,]
+overrepresentedRNA      <- which(enrichmentscRNASeq$NES>1)
+OVER_RNA                <- enrichmentscRNASeq[overrepresentedRNA,]
+underrepresentedRNA     <- which(enrichmentscRNASeq$NES < -1)
+UNDER_RNA               <- enrichmentscRNASeq[underrepresentedRNA,]
 
-overrepresentedATAC<- which(enrichmentATAC$NES>1 )
-OVER_ATAC <-enrichmentATAC[overrepresentedATAC,]
-underrepresentedATAC<- which(enrichmentATAC$NES < -1)
-UNDER_ATAC <- enrichmentATAC[underrepresentedATAC,]
+overrepresentedATAC     <- which(enrichmentATAC$NES>1 )
+OVER_ATAC               <- enrichmentATAC[overrepresentedATAC,]
+underrepresentedATAC    <- which(enrichmentATAC$NES < -1)
+UNDER_ATAC              <- enrichmentATAC[underrepresentedATAC,]
 
 #hypergeometric test
-set1 <-  OVER_ATAC$pathway
-set2 <- OVER_RNA$pathway
-overlap <- intersect(set1, set2)
-allterms <- union(enrichmentscRNASeq$pathway, enrichmentATAC$pathway)
+set1        <-  OVER_ATAC$pathway
+set2        <- OVER_RNA$pathway
+overlap     <- intersect(set1, set2)
+allterms    <- union(enrichmentscRNASeq$pathway, enrichmentATAC$pathway)
 phyper(length(overlap), length(set1), length(allterms)-length(set1), length(set2), lower.tail=F)
 
 #upset plot
