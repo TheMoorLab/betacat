@@ -671,7 +671,7 @@ ggplot(data = gseaplot, aes(x = timepoint, y = NES, group = pathway, label= path
   labs(x 		= 'days post injection',y	= 'NORMALIZED ENRICHMENT SCORE')
 
 
-####CLASSIFIER by A. Lafzi######
+####CLASSIFIER by A.L.######
 logistic.reg <- function(scale.data.ref, clus.ref, top.100.ref.markers, scale.data.test){
   
   train.data <- scale.data.ref
