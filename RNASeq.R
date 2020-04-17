@@ -210,6 +210,7 @@ KO <- ggplot(Hallmarks_KO %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(n= 100),
   labs(x=" ", y="Normalized Enrichment Score",
        title=" ", cols="black") + 
   theme_classic()+
+  scale_y_reverse(limits = c(-1,-3.5))+
   labs(y="")+   
   theme(axis.text.y=element_text(size=15), axis.text.x=element_text(size=15))
 
@@ -235,6 +236,7 @@ dm <- ggplot(Hallmarks_dm %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(n= 100),
   labs(x=" ", y="Normalized Enrichment Score",
        title=" ", cols="black") + 
   theme_classic()+
+  scale_y_reverse(limits = c(-1,-3.5))+
   labs(y="")+   
   theme(axis.text.y=element_text(size=15), axis.text.x=element_text(size=15))
 
@@ -261,6 +263,7 @@ DeltaC <- ggplot(Hallmarks_DeltaC %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(
   coord_flip() +
   labs(x=" ", y="NORMALIZED ENRICHMENT SCORE",
        title=" ", cols="black") + 
+  scale_y_reverse(limits = c(-1,-3.5))+
   theme_classic()+  
   theme(axis.text.y=element_text(size=15), axis.text.x=element_text(size=15), axis.title=element_text(size=15, face="bold"))
 
