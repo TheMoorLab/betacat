@@ -202,7 +202,7 @@ Hallmarks_KO <- fgsea(pathways = Hallmarks,
                  maxSize=500,
                  nperm=1000000)
 
-KO <- ggplot(Hallmarks_KO %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(n= 100), aes(reorder(pathway, NES), NES)) +
+KO <- ggplot(Hallmarks_KO %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(n= 100), aes(reorder(pathway, -NES), NES)) +
   geom_point(aes(size=size, colour=pval, width=3)) +
   scale_size_area(max_size = 10)+
   scale_color_gradientn(colours = brewer.pal(11,"RdYlBu")[1:11]) +
@@ -228,7 +228,7 @@ Hallmarks_dm <- fgsea(pathways = Hallmarks,
                maxSize=500,
                nperm=1000000000)
 
-dm <- ggplot(Hallmarks_dm %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(n= 100), aes(reorder(pathway, NES), NES)) +
+dm <- ggplot(Hallmarks_dm %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(n= 100), aes(reorder(pathway, -NES), NES)) +
   geom_point(aes(size=size, colour=pval, width=3)) +
   scale_size_area(max_size = 10)+
   scale_color_gradientn(colours = brewer.pal(11,"RdYlBu")[1:11]) +
@@ -256,7 +256,7 @@ Hallmarks_DeltaC <- fgsea(pathways = Hallmarks,
 
 View(Hallmarks_DeltaC %>% filter(abs(NES)>1.5 & pval<0.05))
 
-DeltaC <- ggplot(Hallmarks_DeltaC %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(n= 100), aes(reorder(pathway, NES), NES)) +
+DeltaC <- ggplot(Hallmarks_DeltaC %>% filter(abs(NES)>1.5 & pval<0.05) %>% head(n= 100), aes(reorder(pathway, -NES), NES)) +
   geom_point(aes(size=size, colour=pval, width=3)) +
   scale_size_area(max_size = 10)+
   scale_color_gradientn(colours = brewer.pal(11,"RdYlBu")[1:11]) +
