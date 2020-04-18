@@ -256,7 +256,7 @@ DimPlot(crypt, reduction.used = "umap", label = FALSE, pt.size = .3, group.by = 
 Idents(crypt) <- "orig.ident"
 
 #pull data matrix from samples (normalized, non-scaled data) and apply exp to remove the log
-D164A_0d              <- subset(crypt, idents = "D164A_ni")
+D164A_0d              <- subset(crypt, idents = "D164A_0d")
 D164A_0d_norm.data    <- exp(D164A_0d[["RNA"]]@data)
 
 D164A_2d              <- subset(crypt, idents = "D164A_2d")
@@ -265,7 +265,7 @@ D164A_2d_norm.data    <- exp(D164A_2d@assays[["RNA"]]@data)
 D164A_4d              <- subset(crypt, idents = "D164A_4d")
 D164A_4d_norm.data    <- exp(D164A_4d@assays[["RNA"]]@data)
 
-control_0d            <- subset(crypt, idents = "control_ni")
+control_0d            <- subset(crypt, idents = "control_0d")
 control_0d_norm.data  <- exp(control_0d[["RNA"]]@data)
 
 control_2d            <- subset(crypt, idents = "control_2d")
