@@ -12,6 +12,8 @@ library(ggraph)
 library(cowplot)
 library(SeuratWrappers)
 library(conos)
+library(destiny) 
+library(ggrepel)
 library(SeuratData)
 library('psupertime')
 library('SingleCellExperiment')
@@ -235,7 +237,8 @@ barplot(c, horiz=TRUE,
         cex.axis=1.5, cex.names=1.5, cex.main=2)
 
 #################SUBSETTING OF STEM CELLS AND EP TOGETHER###############
-Idents(timecourse)  <- "leiden" #set leiden clustering as active identity 
+#set leiden clustering as active identity 
+Idents(timecourse)  <- "leiden" 
 crypt               <- subset(timecourse, idents = c("Stem cells", "Early progenitors"))
 length(crypt@active.ident)
 DimPlot(crypt, reduction.used = "umap", 
@@ -354,7 +357,7 @@ D164A_sce <- as.SingleCellExperiment(norm.crypt)
 dm        <- DiffusionMap(D164A_sce)
 
 plot(dm,1:2,
-     pch = 16, # pch for prettier points
+     pch = 16, 
      col_by = "Olfm4",
      legend_main = 'norm TA and SC clusters')
 
@@ -622,23 +625,21 @@ ggplot(data = gseaplot, aes(x = timepoint, y = NES, group = pathway, label= path
   geom_smooth(aes(color=..x..), size=.25) +
   theme(axis.text.y = element_text(face="bold", size=15, colour = "black"))+
   theme(axis.text.x = element_text(face="bold", size=15, colour = "black"))+
-  #theme(legend.position=c(0, 3), legend.direction = "vertical")+
   guides(col= FALSE)+
   scale_colour_gradientn(colours = colorRampPalette(wes_palette("Darjeeling1", n=3))(length(seq(0, 4.5, by = 0.04))))+
-  #add darkred lines for selected pathways
-  geom_smooth(data=gseaplot[c(71, 3057, 6043),], col="black", size=.5) + #GO_RIBOSOME
+  geom_smooth(data=gseaplot[c(71, 3057, 6043),], col="black", size=.5) + 
   annotate("label", x= 2.1, y=gseaplot$NES[3057], label = "ribosome", size=4.2, hjust = 0)+
-  geom_smooth(data=gseaplot[c(160, 3146, 6132),], col="black", size=.5) + #REACTOME_EUKARYOTIC_TRANSLATION_INITIATION
+  geom_smooth(data=gseaplot[c(160, 3146, 6132),], col="black", size=.5) + 
   annotate("label", x= 2.1, y=gseaplot$NES[3146],label = "translation", size=4.2, hjust = 0)+
-  geom_smooth(data=gseaplot[c(9, 2995, 5981),], col="black", size=.5) + #HALLMARK_E2F_TARGETS
+  geom_smooth(data=gseaplot[c(9, 2995, 5981),], col="black", size=.5) +
   annotate("label", x= 4.1, y=gseaplot$NES[5981]-0.2,label = "E2F targets",col="black", size=4.2, hjust = 0)+
-  geom_smooth(data=gseaplot[c(13, 2999, 5985),], col="black", size=.5) + #HALLMARK_G2M CHECKPOINT
+  geom_smooth(data=gseaplot[c(13, 2999, 5985),], col="black", size=.5) + 
   annotate("label", x= 4.1, y=gseaplot$NES[5985],label = "G2M checkpoint",col="black",  size=4.2, hjust = 0)+
-  geom_smooth(data=gseaplot[c(43, 3029, 6015),], col="black", size=.5) + #REACTOME_CELL_CYCLE
+  geom_smooth(data=gseaplot[c(43, 3029, 6015),], col="black", size=.5) +
   annotate("label", x= 4.1, y=gseaplot$NES[6015],label = "cell cycle",col="black",  size=4.2, hjust = 0)+
-  geom_smooth(data=gseaplot[c(21, 3007, 5993),], col="black", size=.5) + #KRAS SIGNALLING
+  geom_smooth(data=gseaplot[c(21, 3007, 5993),], col="black", size=.5) +
   annotate("label", x= 4.1, y=gseaplot$NES[5993],label = "Kras signalling", size=4.2, hjust = 0)+
-  geom_smooth(data=gseaplot[c(2020, 5006, 7992),], col="black", size=.5) + #DIGESTION
+  geom_smooth(data=gseaplot[c(2020, 5006, 7992),], col="black", size=.5) + 
   annotate("label", x= 4.1, y=gseaplot$NES[5992],label = "digestion", size=4.2, hjust = 0)+
   geom_smooth(data=gseaplot[c(1108, 4094, 7080),], col="black", size=.5) + 
   annotate("label", x= 4.1, y=gseaplot$NES[7080],label = "APC targets", col="black", size=4.2, hjust = 0)+
@@ -648,22 +649,13 @@ ggplot(data = gseaplot, aes(x = timepoint, y = NES, group = pathway, label= path
   annotate("label", x= 4.1, y=gseaplot$NES[8486],label = "stress signalling", col="black", size=4.2, hjust = 0)+
   geom_smooth(data=gseaplot[c(609, 3595, 6581),], col="black", size=.5) + 
   annotate("label", x= 4.1, y=gseaplot$NES[6581],label = "downregulated upon Ctnnb1 KO", col="black", size=4.2, hjust = 0)+
-  #geom_smooth(data=gseaplot[c(1574, 4560, 7546),], col="black", size=.5) + 
-  #annotate("label", x= 4.1, y=gseaplot$NES[7546],label = "Lef1 targets", size=4.2, hjust = 0)+
-  #geom_smooth(data=gseaplot[c(1546, 4532, 7518),], col="black", size=.5) + #LEF1 TARGETS
-  #annotate("label", x= 4.1, y=gseaplot$NES[7518],label = "HNF1", size=4.2, hjust = 0)+
-  geom_smooth(data=gseaplot[c(20, 3006, 5992),], col="black", size=.5) + #endogenous antigen presentation
+  geom_smooth(data=gseaplot[c(20, 3006, 5992),], col="black", size=.5) +
   annotate("label", x= 4.1+0.7, y=gseaplot$NES[5992],label = "interferon g signalling",col="black", size=4.2, hjust = 0)+
-  geom_smooth(data=gseaplot[c(1838, 4824, 7810),], col="black", size=.5) + #endogenous antigen presentation
+  geom_smooth(data=gseaplot[c(1838, 4824, 7810),], col="black", size=.5) + 
   annotate("label", x= 4.1, y=gseaplot$NES[7810],label = "endog. antig. present.",col="black", size=4.2, hjust = 0)+
   geom_point(data=gseaplot, aes(timepoint, NES, fill=pval, size=size), shape = 21,color="black")+
   geom_hline(yintercept = 0, linetype="dashed")+
   scale_fill_gradientn(colours = colorRampPalette(c("gray0", "gray50", "gray100"))(length(seq(0, 4, by = 0.04))))+
-  #scale_fill_manual( values=wes_palette("Darjeeling1"), name="days pi" ) 
-  #geom_text(aes(label=ifelse(timepoint>2,as.character(pathway),'')),hjust=0,vjust=0) 
-  #geom_text_repel(aes(label=ifelse(timepoint>2,as.character(pathway),'')), direction="y", nudge_x=7, size = 5 , segment.size = 0.1, xjust  = 3) +
-  #geom_text_repel(aes(label=ifelse(timepoint==2&NES<0, as.character(pathway),'')), size = 5 ) +
-  #geom_text_repel(aes(label=ifelse(timepoint>2&NES<0, as.character(pathway),'')), nudge_x=7, direction="y") +
   theme(text = element_text(size=15)) +
   labs(x 		= 'days post injection',y	= 'NORMALIZED ENRICHMENT SCORE')
 
