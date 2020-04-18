@@ -1,5 +1,5 @@
 CreateSeurat_200_3_mouse <- function(annotated_matrix, projectName, minCells, minFeatures, Variable_mean_cutoff, Variable_dispersion_cutoff, pc) {
-  #this function creats a seruat object with the initial cutoffs of min.cell=3 and min.features=200
+  #this function creates a Seurat object with the initial cutoffs of min.cell=3 and min.features=200
   #then it also defines the mitochondrial gene content, adds it meta data
   #returns initial violin plots and median values of number of genes,...
   #makes the initial statistical tests for PCA filtering 
@@ -29,28 +29,6 @@ CreateSeurat_200_3_mouse <- function(annotated_matrix, projectName, minCells, mi
   return(tmp)
 }
 
-
-Annotation_mouse_with_prefix <- function(zUMI_output, prefix) {
-  #This function returns the annotated count matrix with gene names 
-  ensembl<-useEnsembl(biomart="ensembl",GRCh=37)
-  list<-listDatasets(ensembl)
-  mart <- useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl", version=84)
-  attributes<-listAttributes(mart)
-  gene_ids<-getBM(attributes = c("ensembl_gene_id","external_gene_name"), mart = mart)
-  tmp<-as.matrix(zUMI_output$umicount$exon$all)
-  colnames(tmp)<-paste(colnames(tmp), prefix) 
-  tmp<-mutate(as.data.frame(tmp),ensembl_gene_id=rownames(tmp))
-  tmp<-full_join(tmp,gene_ids)
-  print(length(unique(tmp$external_gene_name)))
-  #removes dublicates 
-  ##---------------rewrite this part so it only take the highest expressed of the duplicate----------
-  tmp<-tmp[!duplicated(tmp$external_gene_name),]
-  tmp[is.na(tmp)]<-0 #make all empty value to zero
-  rownames(tmp)<-tmp$external_gene_name
-  tmp<-dplyr::select(tmp,-external_gene_name,-ensembl_gene_id)
-  return(tmp)
-}
-
 Annotation_mouse <- function(zUMI_output) {
   #This function returns the annotated count matrix with gene names 
   ensembl<-useEnsembl(biomart="ensembl",GRCh=37)
@@ -62,25 +40,11 @@ Annotation_mouse <- function(zUMI_output) {
   tmp<-mutate(as.data.frame(tmp),ensembl_gene_id=rownames(tmp))
   tmp<-full_join(tmp,gene_ids)
   print(length(unique(tmp$external_gene_name)))
-  #removes dublicates 
-  ##---------------rewrite this part so it only take the highest expressed of the duplicate----------
   tmp<-tmp[!duplicated(tmp$external_gene_name),]
   tmp[is.na(tmp)]<-0 #make all empty value to zero
   rownames(tmp)<-tmp$external_gene_name
   tmp<-dplyr::select(tmp,-external_gene_name,-ensembl_gene_id)
   return(tmp)
-}
-
-CyclingCells <- function(SeuratObject_dim_reduction) {
-  #this function annotates cells in different cell cycle phases, S, G2M and G1 and returns a tsne plot and 
-  #also how many cells are in each cell cycle cluster 
-  #important in your directory you need the regev_lab_cell_cycle_genes.txt file (download from Seurat webpage)
-  #previous umap or tsne dimensional reduction needed for this function 
-  cc.genes <- readLines(con = "regev_lab_cell_cycle_genes.txt")
-  s.genes <- cc.genes[1:43]
-  g2m.genes <- cc.genes[44:97]
-  tmp <-CellCycleScoring(object = SeuratObject_dim_reduction, s.features = s.genes, g2m.features  = g2m.genes, set.ident = TRUE)
-  DimPlot(object = tmp, reduction = 'umap', label = TRUE, label.size = 10, pt.size = 0.5)
 }
 
 Annotation_mouse_reads <- function(zUMI_output, prefix) {
@@ -95,8 +59,6 @@ Annotation_mouse_reads <- function(zUMI_output, prefix) {
   tmp<-mutate(as.data.frame(tmp),ensembl_gene_id=rownames(tmp))
   tmp<-full_join(tmp,gene_ids)
   print(length(unique(tmp$external_gene_name)))
-  #removes dublicates 
-  ##---------------rewrite this part so it only take the highest expressed of the duplicate----------
   tmp<-tmp[!duplicated(tmp$external_gene_name),]
   tmp[is.na(tmp)]<-0 #make all empty value to zero
   rownames(tmp)<-tmp$external_gene_name
