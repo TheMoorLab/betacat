@@ -1,6 +1,7 @@
 library(tidyverse)
 library(pheatmap)
 library(ggplot2)
+library(RColorBrewer) 
 library(plyr)
 library(devtools)
 install_github("raivokolde/pheatmap")
