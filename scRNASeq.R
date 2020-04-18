@@ -102,7 +102,7 @@ median(a$reads_per_gene)
 median(a$reads_per_umi)
 
 #################MERGE PRE-PROCESSED SAMPLES################
-timecourse_merged <- merge(control_ni_rS, c(control_2d_rS, control_4d_rS, D164A_ni_rS, D164A_2d_rS, D164A_4d_rS), add.cell.ids = c("control 0d pi", "control 2d pi", "control 4d pi", "D164A 0d pi", "D164A 2d pi", "D164A 4d pi"))
+timecourse_merged <- merge(control_0d_rS, c(control_2d_rS, control_4d_rS, D164A_0d_rS, D164A_2d_rS, D164A_4d_rS), add.cell.ids = c("control 0d pi", "control 2d pi", "control 4d pi", "D164A 0d pi", "D164A 2d pi", "D164A 4d pi"))
 length(timecourse_merged@active.ident)
 FeatureScatter(timecourse_merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "orig.ident")
 timecourse_merged <- subset(timecourse_merged, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent.mito < 0.2)
@@ -128,7 +128,7 @@ panel_timecourse.con$findCommunities(method=leiden.community, resolution=1.3)
 
 #UMAP embedding
 panel_timecourse.con$embedGraph(method="UMAP", min.dist=0.01, spread=15, n.cores=1, set.seed(1))
-umap_dt  = data.table(cell_id=rownames(panel_timecourse.con$embedding), panel.con$embedding)
+umap_dt  = data.table(cell_id=rownames(panel_timecourse.con$embedding), panel_timecourse.con$embedding)
 setnames(umap_dt, names(umap_dt), c("cell_id", "umap1", "umap2"))
 
 #plot
@@ -147,9 +147,7 @@ View(markers_timecourse %>% group_by(cluster) %>% top_n(n = 20, wt = avg_logFC))
 DimPlot(timecourse, group.by = "leiden", pt.size = .9, label = T)
 markers.to.plot <-  c("Dclk1", "Rgs13", "Cd24a", #9 = tuft cell markers
                       "Cd3g", "Cd7", "Ccl5", #4 = immune cells 
-                      "Gpx1", "Car4",  #6 = immature 
-                      "Apoc3", "Sepp1", "Clec2h", #mature
-                      "Creb3l3", "Nrli3", #proximal
+                      "Gpx1", "Car4", "Apoc3", "Sepp1", "Clec2h",  "Creb3l3", "Nrli3",  #enterocytes
                       "Olfm4", "Wdr43", "Mki67", "Ccnd1", #stem cells /TA$
                       "Mptx2", "Ang4","Lyz1", #5 = Paneth cells  
                       "Atoh1", "Muc2", "Tff3") #5=goblet cells)
@@ -326,7 +324,6 @@ norm.crypt <- RunUMAP(object = norm.crypt, dims = 1:10, set.seed = 5)
 norm.crypt <- FindNeighbors(norm.crypt, dims = 1:15, set.seed = 5) 
 DimPlot(norm.crypt, reduction.used = "umap", label = FALSE, pt.size =1,
         cols= wes_palette("Darjeeling1"))
-FeaturePlot(norm.crypt, features="cc.score", pt.size=.6, sort.cell =T)+ scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
 
 
 ######DIFFUSION MAP WITH DESTINY FOR DIFFERENTIATION TRAJECTORY########
@@ -356,20 +353,20 @@ if (all(names(x = mean.exp) == rownames(x = norm.crypt@meta.data))) {
 D164A_sce <- as.SingleCellExperiment(norm.crypt)
 dm        <- DiffusionMap(D164A_sce)
 
-plot(dm2,1:2,
+plot(dm,1:2,
      pch = 16, # pch for prettier points
      col_by = "Olfm4",
      legend_main = 'norm TA and SC clusters')
 
 #nice plot
-ggplot(dm2) + theme_classic()+
+ggplot(dm) + theme_classic()+
   geom_vline(xintercept = 0, linetype="dashed") +
   geom_point(data=dm, aes(DC1, DC2, fill=factor(orig.ident)), shape = 21,color="black", size =3) +
   scale_fill_manual(values = wes_palette("Darjeeling1"), name=" ") +
   theme(text = element_text(size=30)) +labs (x = "DC 1", y = "DC 2")
 
 #violin plot
-ggplot(dm2, aes(x=orig.ident, y=DC1, fill=factor(orig.ident))) + 
+ggplot(dm, aes(x=orig.ident, y=DC1, fill=factor(orig.ident))) + 
   geom_violin(color="black", width = 2)+ theme_classic()+ theme(legend.position = "none") + 
   scale_fill_manual(values = wes_palette("Darjeeling1"), name=" ") + 
   theme(text = element_text(size=30)) +
@@ -377,18 +374,18 @@ ggplot(dm2, aes(x=orig.ident, y=DC1, fill=factor(orig.ident))) +
   theme(axis.title.x=element_blank(), axis.text.x=element_blank(),   axis.ticks.x=element_blank())
 
 #write table to calculate Wilcoxon test (alternative to Student T test when you can't assume differences to be normally distributed)
-View(dm2$DC1)
-stat <- as.data.frame(dm2$DC1)
+View(dm$DC1)
+stat <- as.data.frame(dm$DC1)
 stat$time <- rownames(stat)
-time0 <- stat[grep("D164A_ni", stat$time), ]
+time0 <- stat[grep("D164A_0d", stat$time), ]
 nrow(time0)
 time2 <- stat[grep("D164A_2d", stat$time), ]
 nrow(time2)
 time4 <- stat[grep("D164A_4d", stat$time), ]
 nrow(time4)
 
-wilcox.test(time0$`dm2$DC1`, time2$`dm2$DC1`, alternative = "two.sided") #p-value < 2.2e-16
-wilcox.test(time0$`dm2$DC1`, time4$`dm2$DC1`, alternative = "two.sided") #p-value < 2.2e-16
+wilcox.test(time0$`dm$DC1`, time2$`dm$DC1`, alternative = "two.sided") #p-value < 2.2e-16
+wilcox.test(time0$`dm$DC1`, time4$`dm$DC1`, alternative = "two.sided") #p-value < 2.2e-16
 
 #plot showing expression of signatures
 ggplot(dm) + theme_classic()+
@@ -420,7 +417,7 @@ RidgePlot(tmp, features=(vars = c("G2M.Score")), group.by = "old.ident", wes_pal
 
 statCC      <- as.data.frame(tmp$G2M.Score)
 statCC$time <- rownames(statCC)
-time0CC     <- statCC[grep("D164A_ni", statCC$time), ]
+time0CC     <- statCC[grep("D164A_0d", statCC$time), ]
 nrow(time0CC)
 time2CC     <- statCC[grep("D164A_2d", statCC$time), ]
 time4CC     <- statCC[grep("D164A_4d", statCC$time), ]
@@ -489,10 +486,10 @@ plot_dt     = melt.data.table(
 plot_dt[, `:=`(symbol, factor(symbol, levels = extra_genes))]
 
 # set up plot
-n_genes 	= length(extra_genes)
-ncol 		= ceiling(sqrt(n_genes*plot_ratio))
-nrow 		= ceiling(n_genes/ncol)
-plot_ratio=1
+plot_ratio  = 1
+n_genes 	  = length(extra_genes)
+ncol 		    = ceiling(sqrt(n_genes*plot_ratio))
+nrow 		    = ceiling(n_genes/ncol)
 
 # plot
 ggplot(plot_dt) + 
@@ -535,8 +532,6 @@ DoHeatmap(norm.crypt, slot="data", features = genes.to.plot, group.colors	= wes_
   scale_fill_gradientn(colors = brewer.pal(11,"RdYlBu")[11:1])  +
   theme(axis.text.y = element_text(face = "bold", color = rev(x = labels))) 
 
-geom_text_repel(aes(label=ifelse(timepoint>2,as.character(pathway),'')), direction="y", nudge_x=7, size = 5 , segment.size = 0.1, xjust  = 3) +
-  
 #GSEA
 msigdbr_show_species()
 m_df      <- msigdbr(species = "Mus musculus", category = "H")
@@ -550,6 +545,7 @@ REACTOME  <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
 m_df      <- msigdbr(species = "Mus musculus", category = "C3", subcategory = "TFT")
 TFT       <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
 m_df      <- msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
+BP        <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
 
 #on D164A 0d vs 2d
 D164A_0vs2d <- FindMarkers(norm.crypt, ident.1 = "D164A 2d pi", ident.2 = "D164A 0d pi", verbose = FALSE)
@@ -566,7 +562,7 @@ BP_0vs2 <- fgsea(pathways = BP,
                   maxSize=500,
                   nperm=1000000)
 
-Hallmarks_0vs2
+Hallmarks_0vs2 %>% filter(abs(NES)>1.5 & pval<0.05)
 CGP_0vs2 %>% filter(abs(NES)>1.5 & pval<0.05)
 KEGG_0vs2 %>% filter(abs(NES)>1.5 & pval<0.05)
 REACTOME_0vs2 %>% filter(abs(NES)>1.5 & pval<0.05)
@@ -588,6 +584,7 @@ BP_0vs4 <- fgsea(pathways = BP,
                        maxSize=500,
                        nperm=1000000)
 
+#same code applies for other signatures
 Hallmarks_0vs4  %>% filter(abs(NES)>1.5 & padj<0.05)
 CGP_0vs4        %>% filter(abs(NES)>1.5& padj<0.05)
 KEGG_0vs4       %>% filter(abs(NES)>1.5 & padj<0.05)
